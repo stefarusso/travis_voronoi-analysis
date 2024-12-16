@@ -3,8 +3,6 @@ import numpy as np
 import pandas as pd
 import re
 
-filename="voro.txt"
-
 def line_parser(line):
     #extract name and index in the line of the cell:
     #   "Face  1:  6 Vertices, Area= 9.6354 A^2, Neighbor is 13085 (C6H11N2[689] H9)"
@@ -131,7 +129,7 @@ class Analyzer:
                 f"mol, ref_mol, shells, ref_uniq, ref_uniq_idxs, df")
 
 if __name__ == '__main__':
-    data_obj = Analyzer(filename)
+    data_obj = Analyzer("voro.txt")
     print(data_obj)
 
 
