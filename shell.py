@@ -27,25 +27,13 @@ def cleaning(cell_mols):
             mols.append(mol)
     return mols
 
-def one_shot_encoding(mols):
-    #take array [n_cells,n_mols]
-    #output dataframe with molecules name in columns
-    #number of neighbours in rows. each row is a cell
-    data = []
-    for cell in mols:
-        cell_dict = {'Al2Cl7':0,'AlCl2':0,'AlCl3':0,'AlCl4':0,'C6F2H4':0,'CH4N2O':0,'C6H11N2':0}
-        keys, counts = np.unique(cell,return_counts=True)
-        for idx,key in enumerate(keys):
-            cell_dict[key]=counts[idx]
-        data.append(cell_dict)
-    return data
-
 class Analyzer:
     def __init__(self, filename):
         self.mols , self.ref_mols = self.load_file(filename)
         self.shells, self.ref_uniq, self.ref_uniq_idxs = self.shell()
         self.df = self.dataframe()
-        print(self.df)
+        self.analyze()
+        #print(self.df)
 
     def __str__(self):
         return (r"Data Object: \n mols : [N_cells,N_mols]\n ref_mols : [N_cells,1]")
@@ -104,12 +92,12 @@ class Analyzer:
                  shell = [ shell[i].split("_")[0] for i in np.where(idx)[0] ] # removed RM and idx
              shells.append(shell)
         ref_unique_name = [ mol.split('_')[0] for mol in ref_unique] #remove idx
-        idxs = [mol.split('_')[1] for mol in ref_unique]
+        idxs = [int(mol.split('_')[1]) for mol in ref_unique]
         return shells, ref_unique_name, idxs
     def dataframe(self):
         #extract occurrence of each molecular type from the shell array
         #outputs a pandas dataframe with RM in the rows and molecular types in columns
-
+        #
         # create dictionary to fill with shells
         dict_mol = list(set(i for j in self.shells for i in j))
         dict_mol = dict(zip(dict_mol, np.zeros(len(dict_mol), dtype='int')))
@@ -123,20 +111,27 @@ class Analyzer:
                 line[key] = counts[idx]
             dataframe.append(line)
         dataframe = pd.DataFrame(dataframe, index=self.ref_uniq)
+        dataframe["idx"] = self.ref_uniq_idxs
         return dataframe
+    def analyze(self):
+        # Select each RF type one at time
+        # save 2 csv for each molecular type.
+        # name_full.csv has all the cells
+        # name_size.csv has all unique cell composition with their occurance ("size")
+        index = set(self.df.index.values.tolist())
+        for name in index:
+            tmp_df_full = self.df.iloc[self.df.index == name, :]
+            tmp_df_full.sort_values("idx").to_csv(name + "_full.csv", index=None, sep='\t')
+            tmp_df = self.df.iloc[self.df.index == name, self.df.columns != "idx"]
+            counts = tmp_df.groupby(list(self.df.columns[0:-1]), as_index=False).size()
+            counts = counts.sort_values("size", ascending=False)
+            counts.to_csv(name + "_size.csv", index=None, sep='\t')
+    def __str__(self):
+        return (f"<Analyzed Object>: "
+                f"mol, ref_mol, shells, ref_uniq, ref_uniq_idxs, df")
+
+if __name__ == '__main__':
+    data_obj = Analyzer(filename)
+    print(data_obj)
 
 
-data_obj = Analyzer(filename)
-df = data_obj.df
-index = set(df.index.values.tolist())
-
-#Select each RF type one at time
-for name in index:
-    print("MOL : ",str(name),"__________________")
-    tmp_df = df[df.index == name]
-    counts = tmp_df.groupby(list(df.columns[1:]), as_index=False).size()
-    counts = counts.sort_values("size", ascending=False)
-    #counts = counts.sort_values(by="size", axis=0)
-    #counts["p"] = counts["size"] / sum(counts["size"]) * 100
-    print(counts)
-    counts.to_csv(name+".csv",index=None)
