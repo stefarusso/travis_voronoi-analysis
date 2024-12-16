@@ -43,7 +43,7 @@ def one_shot_encoding(mols):
 class Analyzer:
     def __init__(self, filename):
         self.mols , self.ref_mols = self.load_file(filename)
-        self.shells, self.ref_uniq = self.shell()
+        self.shells, self.ref_uniq, self.ref_uniq_idxs = self.shell()
         self.df = self.dataframe()
         print(self.df)
 
@@ -103,8 +103,9 @@ class Analyzer:
                  idx = np.invert(idx)
                  shell = [ shell[i].split("_")[0] for i in np.where(idx)[0] ] # removed RM and idx
              shells.append(shell)
-        ref_unique = [ mol.split('_')[0] for mol in ref_unique] #remove idx
-        return shells, ref_unique
+        ref_unique_name = [ mol.split('_')[0] for mol in ref_unique] #remove idx
+        idxs = [mol.split('_')[1] for mol in ref_unique]
+        return shells, ref_unique_name, idxs
     def dataframe(self):
         #extract occurrence of each molecular type from the shell array
         #outputs a pandas dataframe with RM in the rows and molecular types in columns
@@ -114,8 +115,9 @@ class Analyzer:
         dict_mol = dict(zip(dict_mol, np.zeros(len(dict_mol), dtype='int')))
         dataframe = []
         # fill dict with counts of each molecule type
-        for shell in self.shells:
+        for shell,idxs in zip(self.shells,self.ref_uniq_idxs):
             line = dict_mol.copy()
+            #line["idx"] = idxs
             keys, counts = np.unique(shell, return_counts=True)
             for idx, key in enumerate(keys):
                 line[key] = counts[idx]
@@ -130,11 +132,11 @@ index = set(df.index.values.tolist())
 
 #Select each RF type one at time
 for name in index:
+    print("MOL : ",str(name),"__________________")
     tmp_df = df[df.index == name]
-    counts = tmp_df.groupby(list(df.columns), as_index=False).size()
-    print(counts)
-    #counts = tmp_df.sort_values("size",axis=1, ascending=False)
+    counts = tmp_df.groupby(list(df.columns[1:]), as_index=False).size()
+    counts = counts.sort_values("size", ascending=False)
+    #counts = counts.sort_values(by="size", axis=0)
     #counts["p"] = counts["size"] / sum(counts["size"]) * 100
-    print(counts["size"].max())
-
-
+    print(counts)
+    counts.to_csv(name+".csv",index=None)
